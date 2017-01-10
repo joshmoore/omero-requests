@@ -3,7 +3,7 @@ import logging
 
 from orequests import OmeroRequests
 import requests_mock
-
+from requests_mock.exceptions import NoMockAddress
 
 logging.basicConfig(filename='test_orequests.log', level=logging.DEBUG)
 
@@ -13,7 +13,7 @@ class TestRequests(object):
     @requests_mock.Mocker()
     def test_basic(self, m):
         with OmeroRequests() as oreq:
-            oreq.configure("mock://test.com/")
+            oreq.configure("mock://test.com")
             m.get(oreq.urls['index'], text='index')
             m.get(oreq.urls['login'], text='login')
             oreq.connect()
@@ -28,19 +28,46 @@ class TestRequests(object):
             m.get(thumb_url, status_code=404)
             assert oreq.session.get(thumb_url).status_code == 404
 
-    @requests_mock.Mocker()
-    def test_bad_basic(self, m):
-        with pytest.raises(requests_mock.exceptions.NoMockAddress) as excinfo:
-            with OmeroRequests() as oreq:
-                oreq.configure("mock://test.com/")
-                oreq.connect()
-            assert 'No mock address: GET mock://test.comwebclient/' \
-                in str(excinfo.value)
+    @pytest.mark.parametrize('params', (
+        {'kwargs': {},
+            'error': 'GET mock://test.com/webclient/'},
+        {'kwargs': {'token': '12345'},
+            'error': ('GET mock://test.com/webclient/'
+                      '?server=1&bsession=12345')},
+        {'kwargs': {'username': 'foo', 'password': 'bar'},
+            'error': 'GET mock://test.com/webclient/login/'},
+    ))
+    def test_urls(self, params):
+        with requests_mock.Mocker():
+            with pytest.raises(NoMockAddress) as excinfo:
+                with OmeroRequests() as oreq:
+                    oreq.configure("mock://test.com")
+                    oreq.connect(**params['kwargs'])
+            assert str(excinfo.value).endswith(params['error'])
+
+    @pytest.mark.parametrize('params', (
+        {'domain': "mock://test.com"},
+        {'domain': "mock://test.com/"},
+        {'domain': "mock://test.com:1234"},
+        {'domain': "mock://test.com:1234/"},
+        {'domain': "mock://test.com/prefix"},
+        {'domain': "mock://test.com/prefix/"},
+        {'domain': "mock://test.com:1234/prefix"},
+        {'domain': "mock://test.com:1234/prefix/"},
+    ))
+    def test_domain(self, params):
+        with requests_mock.Mocker():
+            with pytest.raises(NoMockAddress) as excinfo:
+                with OmeroRequests() as oreq:
+                    oreq.configure(params['domain'])
+                    oreq.connect()
+            error = ("%s/webclient/" % params['domain'].rstrip("/"))
+            assert str(excinfo.value).endswith(error)
 
     @requests_mock.Mocker()
     def test_basic_async(self, m):
         with OmeroRequests() as oreq:
-            oreq.configure("mock://test.com/")
+            oreq.configure("mock://test.com")
             m.get(oreq.urls['index'], text='index')
             m.get(oreq.urls['login'], text='login')
             oreq.connect()
@@ -57,7 +84,7 @@ class TestRequests(object):
     def test_token(self, token):
         with requests_mock.Mocker() as m:
             with OmeroRequests() as oreq:
-                oreq.configure("mock://test.com/")
+                oreq.configure("mock://test.com")
                 m.get(oreq.urls['index'], text='index')
                 m.get(oreq.urls['login'], text='login')
 

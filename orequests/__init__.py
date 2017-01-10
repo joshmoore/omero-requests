@@ -26,6 +26,7 @@
 import logging
 import requests
 
+from urlparse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -49,36 +50,39 @@ class OmeroRequests(object):
         self.config = {}
         self.urls = {}
 
-    def configure(self, host, server=1):
-        self.config = {'host': host, 'server': server}
-        self.urls['index'] = self.prepare_url("webclient/")
-        self.urls['login'] = self.prepare_url("login/")
+    def configure(self, domain, server=1):
+        self.config = {'domain': domain.rstrip('/'), 'server': server}
+        self.urls['index'] = self.prepare_url("/webclient/")
+        self.urls['login'] = self.prepare_url("/webclient/login/")
 
-    def prepare_url(self, url, params={}):
-        params['host'] = self.config['host']
-        url = "{host}%s" % url
+    def prepare_url(self, url, params={}, no_prefix=False):
+        if no_prefix:
+            params['domain'] = "{0.scheme}://{0.netloc}".format(
+                urlparse(self.config['domain']))
+        else:
+            params['domain'] = self.config['domain']
+        url = "{domain}%s" % url
         return url.format(**params)
 
     def connect(self, token=None, username=None, password=None):
         if token:
             logger.debug("Authenticate using token: %s" % token)
             self.urls['auth'] = self.prepare_url(
-                "?server={server}&bsession={bsession}",
+                "/webclient/?server={server}&bsession={bsession}",
                 {
                     'server': self.config['server'],
                     'bsession': token
                 })
             url = self.urls['auth']
-            request = requests.Request('GET', url)
         elif username and password:
             logger.debug("Authenticate using username: %s" % username)
-            request = requests.Request('GET', self.urls['login'])
+            url = self.urls['login']
         else:
             logger.debug("Anonymous session")
-            request = requests.Request('GET', self.urls['index'])
-
-        prepped = self.session.prepare_request(request)
-        response = self.session.send(prepped)  # todo: https
+            url = self.urls['index']
+        response = self.session.get(url)  # todo: https
+        if response.status_code != 200:
+            response.raise_for_status()
 
         if username and password:
             csrftoken = self.session.cookies['csrftoken']
@@ -92,9 +96,8 @@ class OmeroRequests(object):
                 self.urls['login'],
                 data=data,
                 headers=dict(Referer=self.urls['login']))
-
-        if response.status_code != 200:
-            response.raise_for_status()
+            if response.status_code != 200:
+                response.raise_for_status()
 
     def exception(self, request, exception):
         logger.error("Problem: {}: {}".format(request.url, exception))

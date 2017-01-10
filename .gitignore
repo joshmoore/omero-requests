@@ -1,6 +1,5 @@
 *.pyc
-test_orequests.log
-
+**/*.log
 .eggs/*
 build/*
 dist/*
