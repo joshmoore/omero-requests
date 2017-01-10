@@ -1,0 +1,7 @@
+*.pyc
+test_orequests.log
+
+.eggs/*
+build/*
+dist/*
+orequests.egg-info/*
