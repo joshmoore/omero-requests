@@ -1,3 +1,4 @@
+import os
 import pytest
 import logging
 
@@ -5,8 +6,19 @@ from orequests import OmeroRequests
 import requests_mock
 from requests_mock.exceptions import NoMockAddress
 
-logging.basicConfig(filename='test_orequests.log', level=logging.DEBUG)
-
+# Logging
+LOGDIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'log').replace('\\', '/')
+if not os.path.isdir(LOGDIR):
+    try:
+        os.makedirs(LOGDIR)
+    except Exception, x:
+        exctype, value = sys.exc_info()[:2]
+        raise exctype(value)
+logging.basicConfig(
+    filename=os.path.join(LOGDIR, 'test_orequests.log').replace('\\', '/'),
+    level=logging.DEBUG
+)
 
 class TestRequests(object):
 
