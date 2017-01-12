@@ -1,4 +1,5 @@
 import os
+import sys
 import pytest
 import logging
 
@@ -19,6 +20,7 @@ logging.basicConfig(
     filename=os.path.join(LOGDIR, 'test_orequests.log').replace('\\', '/'),
     level=logging.DEBUG
 )
+
 
 class TestRequests(object):
 
