@@ -105,6 +105,6 @@ class OmeroRequests(object):
     def async_requests(self, urls):
         import grequests
 
-        rs = (grequests.get(url, session=self.session,
+        rs = (grequests.get(url, session=self.session, stream=False,
                             cookies=self.session.cookies) for url in urls)
-        return grequests.map(rs, exception_handler=self.exception, size=10)
+        return grequests.imap(rs, exception_handler=self.exception, size=10)
